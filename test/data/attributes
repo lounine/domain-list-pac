@@ -1,0 +1,8 @@
+# Testing attributes
+
+include:some-file-name	
+keyword:some-keyword	@some-attribute			# Simple attribute
+full:www.full-domain.com@some-attribute			# Attribute with no leading space
+domain:domain.com	@attribute-1 @attribute-2	# Several attributes
+another-domain.com@attribute-1@attribute-2		# Several attributes with no leading space
+regexp:www\.google\.com$
