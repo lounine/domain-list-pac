@@ -1,0 +1,9 @@
+# Configuring different proxies
+
+PROXY	192.168.41.1:8080
+domain-for-proxy-1.com
+domain-for-proxy-2.com
+
+SOCKS	192.168.41.1:1080
+domain-for-socks-1.com
+domain-for-socks-2.com

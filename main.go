@@ -11,10 +11,6 @@ func main() {
 	}
 
 	proxyPac := ProxyPac{}
-	proxyPac.WriteSettings(config, os.Stdout)
-
-	//config.EmitProxy(os.Stdout)
-
-	// repr.Println(config, repr.Indent("  "), repr.OmitEmpty(true))
-
+	proxyPac.ReadConfig(config)
+	proxyPac.WriteSettings(os.Stdout)
 }

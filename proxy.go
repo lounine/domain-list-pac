@@ -6,57 +6,94 @@ import (
 )
 
 type ProxySettings interface {
-	AddProxy(ProxyConfigEntry)
+	UseProxy(ProxyConfigEntry)
 	AddSubdomainMatch(SubDomainMatch)
-	WriteSettings(*InputConfig, io.Writer)
+	ReadConfig(*InputConfig)
+	WriteSettings(io.Writer)
 }
 
 // A Proxy auto-config file generator
 // Implements ProxySettings interface
 type ProxyPac struct {
-	Proxies    []string
-	Statements []string
+	Proxies      []*ProxyVariable
+	Statements   []ProxyStatement
+	CurrentProxy *ProxyVariable
 }
 
-// AddProxy implements ProxySettings.
-func (proxy *ProxyPac) AddProxy(entry ProxyConfigEntry) {
-	proxy.Proxies = append(proxy.Proxies, entry.Type+" "+entry.Address)
+type ProxyVariable struct {
+	Name    string
+	Type    string
+	Address string
+}
+
+func (variable ProxyVariable) String() string {
+	return fmt.Sprintf("var %v = '%v %v';", variable.Name, variable.Type, variable.Address)
+}
+
+type ProxyStatement struct {
+	Statement string
+	Proxy     *ProxyVariable
+}
+
+func (statement ProxyStatement) String() string {
+	return fmt.Sprintf("%v return %v;", statement.Statement, statement.Proxy.Name)
+}
+
+// UseProxy implements ProxySettings.
+func (proxy *ProxyPac) UseProxy(entry ProxyConfigEntry) {
+	proxy.CurrentProxy = &ProxyVariable{Type: entry.Type, Address: entry.Address}
+
+	if len(proxy.Proxies) == 0 {
+		proxy.CurrentProxy.Name = "p"
+	} else if len(proxy.Proxies) == 1 {
+		proxy.Proxies[0].Name = "p1"
+		proxy.CurrentProxy.Name = "p2"
+	} else {
+		proxy.CurrentProxy.Name = fmt.Sprintf("p%v", len(proxy.Proxies)+1)
+	}
+
+	proxy.Proxies = append(proxy.Proxies, proxy.CurrentProxy)
 }
 
 // AddSubdomainMatch implements ProxySettings.
 func (proxy *ProxyPac) AddSubdomainMatch(match SubDomainMatch) {
-	statement := fmt.Sprintf("	if (dnsDomainIs(h, '%v')) return p;", match.Value)
+	statement := ProxyStatement{
+		Statement: fmt.Sprintf("if (dnsDomainIs(h, '%v'))", match.Value),
+		Proxy:     proxy.CurrentProxy,
+	}
+
 	proxy.Statements = append(proxy.Statements, statement)
 }
 
 func (proxy *ProxyPac) writeProxies(out io.Writer) {
-	if len(proxy.Proxies) == 1 {
-		io.WriteString(out, fmt.Sprintf("\tvar p = '%v';\n", proxy.Proxies[0]))
-	} else {
-		for index, proxy := range proxy.Proxies {
-			io.WriteString(out, fmt.Sprintf("\tvar p%v = '%v';\n", index+1, proxy))
-		}
+	for _, p := range proxy.Proxies {
+		io.WriteString(out, fmt.Sprintf("\t%v\n", p.String()))
 	}
+}
 
-	io.WriteString(out, "\n")
+func (proxy *ProxyPac) writeStatements(out io.Writer) {
+	for _, s := range proxy.Statements {
+		io.WriteString(out, fmt.Sprintf("\t%v\n", s.String()))
+	}
+}
+
+// ReadConfig implements ProxySettings.
+func (proxy *ProxyPac) ReadConfig(config *InputConfig) {
+	for _, e := range config.Entries {
+		e.EmitTo(proxy)
+	}
 }
 
 // WriteSettings implements ProxySettings.
-func (proxy *ProxyPac) WriteSettings(config *InputConfig, out io.Writer) {
+func (p *ProxyPac) WriteSettings(out io.Writer) {
 	io.WriteString(out, "function FindProxyForURL (url, host) {\n")
 	io.WriteString(out, "\tvar h = host.toLowerCase();\n")
 
-	for _, entry := range config.Entries {
-		entry.EmitTo(proxy)
-	}
+	p.writeProxies(out)
+	io.WriteString(out, "\n")
+	p.writeStatements(out)
+	io.WriteString(out, "\n")
 
-	proxy.writeProxies(out)
-
-	for _, statement := range proxy.Statements {
-		io.WriteString(out, statement)
-		io.WriteString(out, "\n")
-	}
-
-	io.WriteString(out, "\n\treturn 'DIRECT';\n")
+	io.WriteString(out, "\treturn 'DIRECT';\n")
 	io.WriteString(out, "}\n")
 }

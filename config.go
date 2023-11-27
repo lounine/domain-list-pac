@@ -51,7 +51,7 @@ type (
 
 // EmitTo implements InputConfigEntry.
 func (entry ProxyConfigEntry) EmitTo(settings ProxySettings) {
-	settings.AddProxy(entry)
+	settings.UseProxy(entry)
 }
 
 // EmitTo implements InputConfigEntry.
