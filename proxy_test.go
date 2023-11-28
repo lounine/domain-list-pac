@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 
@@ -9,23 +10,36 @@ import (
 )
 
 func TestSimpleConfig(t *testing.T) {
-	config := readTestConfig(t, "simple")
+	proxy := ProxyPac{}
+	proxy.ReadConfig(readTestConfig(t, "simple"))
 
-	proxyPac := ProxyPac{}
-	proxyPac.ReadConfig(config)
-
-	contents := buildProxyPacContents(t, &proxyPac)
-	assertEqualToFile(t, "simple.pac", contents)
+	settings := proxy.GenerateSettings()
+	assertEqualToFile(t, "simple.pac", settings)
 }
 
 func TestMultipleProxiesConfig(t *testing.T) {
-	config := readTestConfig(t, "multiple-proxies")
+	proxy := ProxyPac{}
+	proxy.ReadConfig(readTestConfig(t, "multiple-proxies"))
 
-	proxyPac := ProxyPac{}
-	proxyPac.ReadConfig(config)
+	settings := proxy.GenerateSettings()
+	assertEqualToFile(t, "multiple-proxies.pac", settings)
+}
 
-	contents := buildProxyPacContents(t, &proxyPac)
-	assertEqualToFile(t, "multiple-proxies.pac", contents)
+func TestRepeatingProxiesConfig(t *testing.T) {
+	proxy := ProxyPac{}
+	proxy.ReadConfig(readTestConfig(t, "repeating-proxies"))
+
+	settings := proxy.GenerateSettings()
+	assertEqualToFile(t, "repeating-proxies.pac", settings)
+}
+
+func TestNoProxyConfig(t *testing.T) {
+	proxy := ProxyPac{}
+
+	assert.PanicsWithError(t,
+		fmt.Sprintf(NoProxyErrorMessage, "some-domain.com"),
+		func() { proxy.ReadConfig(readTestConfig(t, "no-proxy")) },
+	)
 }
 
 func readTestConfig(t *testing.T, filename string) *InputConfig {
@@ -41,9 +55,9 @@ func readTestConfig(t *testing.T, filename string) *InputConfig {
 	return config
 }
 
-func buildProxyPacContents(t *testing.T, proxyPac *ProxyPac) string {
+func (proxy ProxyPac) GenerateSettings() string {
 	var result bytes.Buffer
-	proxyPac.WriteSettings(&result)
+	proxy.WriteSettings(&result)
 
 	return result.String()
 }

@@ -10,7 +10,7 @@ func main() {
 		panic(err)
 	}
 
-	proxyPac := ProxyPac{}
-	proxyPac.ReadConfig(config)
-	proxyPac.WriteSettings(os.Stdout)
+	proxy := ProxyPac{}
+	proxy.ReadConfig(config)
+	proxy.WriteSettings(os.Stdout)
 }

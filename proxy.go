@@ -12,6 +12,8 @@ type ProxySettings interface {
 	WriteSettings(io.Writer)
 }
 
+const NoProxyErrorMessage = "no proxy to use for %v"
+
 // A Proxy auto-config file generator
 // Implements ProxySettings interface
 type ProxyPac struct {
@@ -41,6 +43,13 @@ func (statement ProxyStatement) String() string {
 
 // UseProxy implements ProxySettings.
 func (proxy *ProxyPac) UseProxy(entry ProxyConfigEntry) {
+	for _, p := range proxy.Proxies {
+		if p.Address == entry.Address {
+			proxy.CurrentProxy = p
+			return
+		}
+	}
+
 	proxy.CurrentProxy = &ProxyVariable{Type: entry.Type, Address: entry.Address}
 
 	if len(proxy.Proxies) == 0 {
@@ -57,6 +66,10 @@ func (proxy *ProxyPac) UseProxy(entry ProxyConfigEntry) {
 
 // AddSubdomainMatch implements ProxySettings.
 func (proxy *ProxyPac) AddSubdomainMatch(match SubDomainMatch) {
+	if proxy.CurrentProxy == nil {
+		panic(fmt.Errorf(NoProxyErrorMessage, match.Value))
+	}
+
 	statement := ProxyStatement{
 		Statement: fmt.Sprintf("if (dnsDomainIs(h, '%v'))", match.Value),
 		Proxy:     proxy.CurrentProxy,
