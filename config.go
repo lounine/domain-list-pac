@@ -56,7 +56,7 @@ func (entry ProxyConfigEntry) EmitTo(settings ProxySettings) {
 
 // EmitTo implements InputConfigEntry.
 func (entry IncludeFileConfigEntry) EmitTo(settings ProxySettings) {
-	panic("unimplemented")
+	settings.ReadConfig(entry.Value)
 }
 
 // EmitTo implements InputConfigEntry.

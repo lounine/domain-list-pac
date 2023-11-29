@@ -1,26 +1,30 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"os"
 )
 
 type ProxySettings interface {
 	UseProxy(ProxyConfigEntry)
 	AddSubdomainMatch(SubDomainMatch)
-	ReadConfig(*InputConfig)
+	ReadConfig(string)
 	WriteSettings(io.Writer)
 }
-
-const NoProxyErrorMessage = "no proxy to use for %v"
 
 // A Proxy auto-config file generator
 // Implements ProxySettings interface
 type ProxyPac struct {
-	Proxies      []*ProxyVariable
-	Statements   []ProxyStatement
-	CurrentProxy *ProxyVariable
+	ConfigLocations []string
+	Proxies         []*ProxyVariable
+	Statements      []ProxyStatement
+	CurrentProxy    *ProxyVariable
 }
+
+const NoProxyErrorMessage = "no proxy to use for %v"
+const NoConfigLocationsErrorMessage = "no config locations set up"
 
 type ProxyVariable struct {
 	Name    string
@@ -91,10 +95,32 @@ func (proxy *ProxyPac) writeStatements(out io.Writer) {
 }
 
 // ReadConfig implements ProxySettings.
-func (proxy *ProxyPac) ReadConfig(config *InputConfig) {
+func (proxy *ProxyPac) ReadConfig(filename string) {
+	config := proxy.getConfig(filename)
 	for _, e := range config.Entries {
 		e.EmitTo(proxy)
 	}
+}
+
+func (proxy *ProxyPac) getConfig(filename string) *InputConfig {
+	if len(proxy.ConfigLocations) == 0 {
+		panic(errors.New(NoConfigLocationsErrorMessage))
+	}
+
+	path := proxy.ConfigLocations[0] + "/" + filename
+	file, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	} else {
+		defer file.Close()
+	}
+
+	config, err := parser.Parse(path, file)
+	if err != nil {
+		panic(err)
+	}
+
+	return config
 }
 
 // WriteSettings implements ProxySettings.

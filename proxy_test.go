@@ -10,49 +10,44 @@ import (
 )
 
 func TestSimpleConfig(t *testing.T) {
-	proxy := ProxyPac{}
-	proxy.ReadConfig(readTestConfig(t, "simple"))
+	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
+	proxy.ReadConfig("simple")
 
 	settings := proxy.GenerateSettings()
 	assertEqualToFile(t, "simple.pac", settings)
 }
 
 func TestMultipleProxiesConfig(t *testing.T) {
-	proxy := ProxyPac{}
-	proxy.ReadConfig(readTestConfig(t, "multiple-proxies"))
+	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
+	proxy.ReadConfig("multiple-proxies")
 
 	settings := proxy.GenerateSettings()
 	assertEqualToFile(t, "multiple-proxies.pac", settings)
 }
 
 func TestRepeatingProxiesConfig(t *testing.T) {
-	proxy := ProxyPac{}
-	proxy.ReadConfig(readTestConfig(t, "repeating-proxies"))
+	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
+	proxy.ReadConfig("repeating-proxies")
 
 	settings := proxy.GenerateSettings()
 	assertEqualToFile(t, "repeating-proxies.pac", settings)
 }
 
 func TestNoProxyConfig(t *testing.T) {
-	proxy := ProxyPac{}
+	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
 
 	assert.PanicsWithError(t,
 		fmt.Sprintf(NoProxyErrorMessage, "some-domain.com"),
-		func() { proxy.ReadConfig(readTestConfig(t, "no-proxy")) },
+		func() { proxy.ReadConfig("no-proxy") },
 	)
 }
 
-func readTestConfig(t *testing.T, filename string) *InputConfig {
-	input, err := os.Open("./test/config/" + filename)
-	assert.NoError(t, err)
-	if err == nil {
-		defer input.Close()
-	}
+func TestSimpleIncludeConfig(t *testing.T) {
+	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
+	proxy.ReadConfig("simple-include")
 
-	config, err := parser.Parse("", input)
-	assert.NoError(t, err)
-
-	return config
+	settings := proxy.GenerateSettings()
+	assertEqualToFile(t, "simple-include.pac", settings)
 }
 
 func (proxy ProxyPac) GenerateSettings() string {
