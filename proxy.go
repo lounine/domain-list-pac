@@ -25,6 +25,8 @@ type ProxyPac struct {
 
 const NoProxyErrorMessage = "no proxy to use for %v"
 const NoConfigLocationsErrorMessage = "no config locations set up"
+const CantAccessFileErrorMessage = "error accessing file %v"
+const FileNotFoundErrorMessage = "can't find included file %v"
 
 type ProxyVariable struct {
 	Name    string
@@ -96,18 +98,30 @@ func (proxy *ProxyPac) writeStatements(out io.Writer) {
 
 // ReadConfig implements ProxySettings.
 func (proxy *ProxyPac) ReadConfig(filename string) {
-	config := proxy.getConfig(filename)
+	config := proxy.getConfigByName(filename)
 	for _, e := range config.Entries {
 		e.EmitTo(proxy)
 	}
 }
 
-func (proxy *ProxyPac) getConfig(filename string) *InputConfig {
+func (proxy *ProxyPac) getConfigByName(filename string) *InputConfig {
 	if len(proxy.ConfigLocations) == 0 {
 		panic(errors.New(NoConfigLocationsErrorMessage))
 	}
 
-	path := proxy.ConfigLocations[0] + "/" + filename
+	for _, dir := range proxy.ConfigLocations {
+		path := dir + "/" + filename
+		if _, err := os.Stat(path); err == nil {
+			return proxy.getConfigByPath(path)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			panic(fmt.Errorf(NoProxyErrorMessage, path))
+		}
+	}
+
+	panic(fmt.Errorf(FileNotFoundErrorMessage, filename))
+}
+
+func (proxy *ProxyPac) getConfigByPath(path string) *InputConfig {
 	file, err := os.Open(path)
 	if err != nil {
 		panic(err)

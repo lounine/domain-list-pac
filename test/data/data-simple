@@ -1,0 +1,4 @@
+# The simplest domain-list-community config
+
+some-domain.com     # Some comment
+other-domain.com    # Some other comment

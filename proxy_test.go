@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSimpleConfig(t *testing.T) {
+func TestSimple(t *testing.T) {
 	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
 	proxy.ReadConfig("simple")
 
@@ -17,37 +17,45 @@ func TestSimpleConfig(t *testing.T) {
 	assertEqualToFile(t, "simple.pac", settings)
 }
 
-func TestMultipleProxiesConfig(t *testing.T) {
+func TestMultipleProxies(t *testing.T) {
 	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
-	proxy.ReadConfig("multiple-proxies")
+	proxy.ReadConfig("proxies-multiple")
 
 	settings := proxy.GenerateSettings()
-	assertEqualToFile(t, "multiple-proxies.pac", settings)
+	assertEqualToFile(t, "proxies-multiple.pac", settings)
 }
 
-func TestRepeatingProxiesConfig(t *testing.T) {
+func TestRepeatingProxies(t *testing.T) {
 	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
-	proxy.ReadConfig("repeating-proxies")
+	proxy.ReadConfig("proxies-repeating")
 
 	settings := proxy.GenerateSettings()
-	assertEqualToFile(t, "repeating-proxies.pac", settings)
+	assertEqualToFile(t, "proxies-repeating.pac", settings)
 }
 
-func TestNoProxyConfig(t *testing.T) {
+func TestNoProxy(t *testing.T) {
 	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
 
 	assert.PanicsWithError(t,
 		fmt.Sprintf(NoProxyErrorMessage, "some-domain.com"),
-		func() { proxy.ReadConfig("no-proxy") },
+		func() { proxy.ReadConfig("proxies-missing") },
 	)
 }
 
-func TestSimpleIncludeConfig(t *testing.T) {
+func TestSimpleInclude(t *testing.T) {
 	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
-	proxy.ReadConfig("simple-include")
+	proxy.ReadConfig("include-simple")
 
 	settings := proxy.GenerateSettings()
-	assertEqualToFile(t, "simple-include.pac", settings)
+	assertEqualToFile(t, "include-simple.pac", settings)
+}
+
+func TestIncludeFromAnotherDirectory(t *testing.T) {
+	proxy := ProxyPac{ConfigLocations: []string{"./test/config", "./test/data"}}
+	proxy.ReadConfig("include-other-dir")
+
+	settings := proxy.GenerateSettings()
+	assertEqualToFile(t, "include-simple.pac", settings)
 }
 
 func (proxy ProxyPac) GenerateSettings() string {
