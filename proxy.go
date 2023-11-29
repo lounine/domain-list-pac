@@ -18,9 +18,9 @@ type ProxySettings interface {
 // Implements ProxySettings interface
 type ProxyPac struct {
 	ConfigLocations []string
-	Proxies         []*ProxyVariable
+	Proxies         []ProxyVariable
 	Statements      []ProxyStatement
-	CurrentProxy    *ProxyVariable
+	CurrentScope    *FileScope
 }
 
 const NoProxyErrorMessage = "no proxy to use for %v"
@@ -47,38 +47,48 @@ func (statement ProxyStatement) String() string {
 	return fmt.Sprintf("%v return %v;", statement.Statement, statement.Proxy.Name)
 }
 
+type FileScope struct {
+	CurrentProxy  *ProxyVariable
+	PreviousScope *FileScope
+}
+
+func (scope FileScope) NewSubScope() *FileScope {
+	return &FileScope{PreviousScope: &scope, CurrentProxy: scope.CurrentProxy}
+}
+
 // UseProxy implements ProxySettings.
 func (proxy *ProxyPac) UseProxy(entry ProxyConfigEntry) {
 	for _, p := range proxy.Proxies {
 		if p.Address == entry.Address {
-			proxy.CurrentProxy = p
+			proxy.CurrentScope.CurrentProxy = &p
 			return
 		}
 	}
 
-	proxy.CurrentProxy = &ProxyVariable{Type: entry.Type, Address: entry.Address}
+	newProxy := ProxyVariable{Type: entry.Type, Address: entry.Address}
 
 	if len(proxy.Proxies) == 0 {
-		proxy.CurrentProxy.Name = "p"
+		newProxy.Name = "p"
 	} else if len(proxy.Proxies) == 1 {
 		proxy.Proxies[0].Name = "p1"
-		proxy.CurrentProxy.Name = "p2"
+		newProxy.Name = "p2"
 	} else {
-		proxy.CurrentProxy.Name = fmt.Sprintf("p%v", len(proxy.Proxies)+1)
+		newProxy.Name = fmt.Sprintf("p%v", len(proxy.Proxies)+1)
 	}
 
-	proxy.Proxies = append(proxy.Proxies, proxy.CurrentProxy)
+	proxy.Proxies = append(proxy.Proxies, newProxy)
+	proxy.CurrentScope.CurrentProxy = &proxy.Proxies[len(proxy.Proxies)-1]
 }
 
 // AddSubdomainMatch implements ProxySettings.
 func (proxy *ProxyPac) AddSubdomainMatch(match SubDomainMatch) {
-	if proxy.CurrentProxy == nil {
+	if proxy.CurrentScope.CurrentProxy == nil {
 		panic(fmt.Errorf(NoProxyErrorMessage, match.Value))
 	}
 
 	statement := ProxyStatement{
 		Statement: fmt.Sprintf("if (dnsDomainIs(h, '%v'))", match.Value),
-		Proxy:     proxy.CurrentProxy,
+		Proxy:     proxy.CurrentScope.CurrentProxy,
 	}
 
 	proxy.Statements = append(proxy.Statements, statement)
@@ -99,9 +109,18 @@ func (proxy *ProxyPac) writeStatements(out io.Writer) {
 // ReadConfig implements ProxySettings.
 func (proxy *ProxyPac) ReadConfig(filename string) {
 	config := proxy.getConfigByName(filename)
+
+	if proxy.CurrentScope == nil {
+		proxy.CurrentScope = &FileScope{}
+	} else {
+		proxy.CurrentScope = proxy.CurrentScope.NewSubScope()
+	}
+
 	for _, e := range config.Entries {
 		e.EmitTo(proxy)
 	}
+
+	proxy.CurrentScope = proxy.CurrentScope.PreviousScope
 }
 
 func (proxy *ProxyPac) getConfigByName(filename string) *InputConfig {

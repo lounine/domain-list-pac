@@ -58,6 +58,14 @@ func TestIncludeFromAnotherDirectory(t *testing.T) {
 	assertEqualToFile(t, "include-simple.pac", settings)
 }
 
+func TestIncludesAreScoped(t *testing.T) {
+	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
+	proxy.ReadConfig("include-scopes")
+
+	settings := proxy.GenerateSettings()
+	assertEqualToFile(t, "include-scopes.pac", settings)
+}
+
 func (proxy ProxyPac) GenerateSettings() string {
 	var result bytes.Buffer
 	proxy.WriteSettings(&result)

@@ -1,0 +1,6 @@
+# Including file with other proxy inside
+
+SOCKS	192.168.41.1:1080
+domain-socks-1.com
+include:simple
+domain-socks-2.com
