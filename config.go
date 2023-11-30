@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
@@ -11,7 +13,7 @@ type (
 	}
 
 	InputConfigEntry interface {
-		EmitTo(ProxySettings)
+		ApplyTo(ProxySettings)
 	}
 
 	ProxyConfigEntry struct {
@@ -29,7 +31,7 @@ type (
 	}
 
 	DomainMatch interface {
-		EmitTo(ProxySettings)
+		ApplyTo(ProxySettings)
 	}
 
 	SubDomainMatch struct {
@@ -49,38 +51,54 @@ type (
 	}
 )
 
-// EmitTo implements InputConfigEntry.
-func (entry ProxyConfigEntry) EmitTo(settings ProxySettings) {
+func NewConfigFrom(path string) *InputConfig {
+	file, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	} else {
+		defer file.Close()
+	}
+
+	config, err := parser.Parse(path, file)
+	if err != nil {
+		panic(err)
+	}
+
+	return config
+}
+
+// ApplyTo implements InputConfigEntry.
+func (entry ProxyConfigEntry) ApplyTo(settings ProxySettings) {
 	settings.UseProxy(entry)
 }
 
-// EmitTo implements InputConfigEntry.
-func (entry IncludeFileConfigEntry) EmitTo(settings ProxySettings) {
+// ApplyTo implements InputConfigEntry.
+func (entry IncludeFileConfigEntry) ApplyTo(settings ProxySettings) {
 	settings.ReadConfig(entry.Value)
 }
 
-// EmitTo implements InputConfigEntry.
-func (entry DomainConfigEntry) EmitTo(settings ProxySettings) {
-	entry.Match.EmitTo(settings)
+// ApplyTo implements InputConfigEntry.
+func (entry DomainConfigEntry) ApplyTo(settings ProxySettings) {
+	entry.Match.ApplyTo(settings)
 }
 
-// EmitTo implements DomainMatch.
-func (match SubDomainMatch) EmitTo(settings ProxySettings) {
+// ApplyTo implements DomainMatch.
+func (match SubDomainMatch) ApplyTo(settings ProxySettings) {
 	settings.AddSubdomainMatch(match)
 }
 
-// EmitTo implements DomainMatch.
-func (RegexpMatch) EmitTo(settings ProxySettings) {
+// ApplyTo implements DomainMatch.
+func (RegexpMatch) ApplyTo(settings ProxySettings) {
 	panic("unimplemented")
 }
 
-// EmitTo implements DomainMatch.
-func (KeywordMatch) EmitTo(settings ProxySettings) {
+// ApplyTo implements DomainMatch.
+func (KeywordMatch) ApplyTo(settings ProxySettings) {
 	panic("unimplemented")
 }
 
-// EmitTo implements DomainMatch.
-func (FullDomainMatch) EmitTo(settings ProxySettings) {
+// ApplyTo implements DomainMatch.
+func (FullDomainMatch) ApplyTo(settings ProxySettings) {
 	panic("unimplemented")
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 type ProxySettings interface {
@@ -17,16 +18,13 @@ type ProxySettings interface {
 // A Proxy auto-config file generator
 // Implements ProxySettings interface
 type ProxyPac struct {
-	ConfigLocations []string
-	Proxies         []ProxyVariable
-	Statements      []ProxyStatement
-	CurrentScope    *FileScope
+	Proxies      []ProxyVariable
+	Statements   []ProxyStatement
+	CurrentScope *FileScope
 }
 
 const NoProxyErrorMessage = "no proxy to use for %v"
-const NoConfigLocationsErrorMessage = "no config locations set up"
 const CantAccessFileErrorMessage = "error accessing file %v"
-const FileNotFoundErrorMessage = "can't find included file %v"
 
 type ProxyVariable struct {
 	Name    string
@@ -48,12 +46,27 @@ func (statement ProxyStatement) String() string {
 }
 
 type FileScope struct {
-	CurrentProxy  *ProxyVariable
-	PreviousScope *FileScope
+	CurrentDirectory    string
+	AdditionalLocations []string
+	CurrentProxy        *ProxyVariable
+	PreviousScope       *FileScope
 }
 
-func (scope FileScope) NewSubScope() *FileScope {
-	return &FileScope{PreviousScope: &scope, CurrentProxy: scope.CurrentProxy}
+func (scope FileScope) LocalSubScope() *FileScope {
+	return &FileScope{
+		CurrentDirectory:    scope.CurrentDirectory,
+		AdditionalLocations: scope.AdditionalLocations,
+		CurrentProxy:        scope.CurrentProxy,
+		PreviousScope:       &scope,
+	}
+}
+
+func (scope FileScope) SubScope(directory string) *FileScope {
+	return &FileScope{
+		CurrentDirectory: directory,
+		CurrentProxy:     scope.CurrentProxy,
+		PreviousScope:    &scope,
+	}
 }
 
 // UseProxy implements ProxySettings.
@@ -106,54 +119,55 @@ func (proxy *ProxyPac) writeStatements(out io.Writer) {
 	}
 }
 
+func NewProxyPac(configPath string, configLocations []string) *ProxyPac {
+	proxy := &ProxyPac{}
+	scope := &FileScope{
+		CurrentDirectory:    filepath.Dir(configPath),
+		AdditionalLocations: configLocations,
+	}
+
+	proxy.applyConfigFromPath(configPath, scope)
+	return proxy
+}
+
 // ReadConfig implements ProxySettings.
 func (proxy *ProxyPac) ReadConfig(filename string) {
-	config := proxy.getConfigByName(filename)
-
-	if proxy.CurrentScope == nil {
-		proxy.CurrentScope = &FileScope{}
-	} else {
-		proxy.CurrentScope = proxy.CurrentScope.NewSubScope()
+	if proxy.tryReadConfig(
+		proxy.CurrentScope.CurrentDirectory,
+		filename,
+		proxy.CurrentScope.LocalSubScope()) {
+		return
 	}
 
-	for _, e := range config.Entries {
-		e.EmitTo(proxy)
-	}
-
-	proxy.CurrentScope = proxy.CurrentScope.PreviousScope
-}
-
-func (proxy *ProxyPac) getConfigByName(filename string) *InputConfig {
-	if len(proxy.ConfigLocations) == 0 {
-		panic(errors.New(NoConfigLocationsErrorMessage))
-	}
-
-	for _, dir := range proxy.ConfigLocations {
-		path := dir + "/" + filename
-		if _, err := os.Stat(path); err == nil {
-			return proxy.getConfigByPath(path)
-		} else if !errors.Is(err, os.ErrNotExist) {
-			panic(fmt.Errorf(NoProxyErrorMessage, path))
+	for _, directory := range proxy.CurrentScope.AdditionalLocations {
+		if proxy.tryReadConfig(
+			directory,
+			filename,
+			proxy.CurrentScope.SubScope(directory)) {
+			return
 		}
 	}
-
-	panic(fmt.Errorf(FileNotFoundErrorMessage, filename))
 }
 
-func (proxy *ProxyPac) getConfigByPath(path string) *InputConfig {
-	file, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	} else {
-		defer file.Close()
+func (proxy *ProxyPac) tryReadConfig(directory string, filename string, scope *FileScope) bool {
+	path := filepath.Join(directory, filename)
+	if _, err := os.Stat(path); err == nil {
+		proxy.applyConfigFromPath(path, scope)
+		return true
+	} else if !errors.Is(err, os.ErrNotExist) {
+		panic(fmt.Errorf(CantAccessFileErrorMessage, path))
 	}
 
-	config, err := parser.Parse(path, file)
-	if err != nil {
-		panic(err)
-	}
+	return false
+}
 
-	return config
+func (proxy *ProxyPac) applyConfigFromPath(path string, scope *FileScope) {
+	config := NewConfigFrom(path)
+	proxy.CurrentScope = scope
+	for _, e := range config.Entries {
+		e.ApplyTo(proxy)
+	}
+	proxy.CurrentScope = proxy.CurrentScope.PreviousScope
 }
 
 // WriteSettings implements ProxySettings.

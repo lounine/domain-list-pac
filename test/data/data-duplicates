@@ -1,0 +1,4 @@
+# Configs with duplicates in additional directories
+
+include:duplicate-1
+include:duplicate-2

@@ -10,60 +10,52 @@ import (
 )
 
 func TestSimple(t *testing.T) {
-	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
-	proxy.ReadConfig("simple")
-
+	proxy := NewProxyPac("./test/config/simple", []string{})
 	settings := proxy.GenerateSettings()
 	assertEqualToFile(t, "simple.pac", settings)
 }
 
 func TestMultipleProxies(t *testing.T) {
-	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
-	proxy.ReadConfig("proxies-multiple")
-
+	proxy := NewProxyPac("./test/config/proxies-multiple", []string{})
 	settings := proxy.GenerateSettings()
 	assertEqualToFile(t, "proxies-multiple.pac", settings)
 }
 
 func TestRepeatingProxies(t *testing.T) {
-	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
-	proxy.ReadConfig("proxies-repeating")
-
+	proxy := NewProxyPac("./test/config/proxies-repeating", []string{})
 	settings := proxy.GenerateSettings()
 	assertEqualToFile(t, "proxies-repeating.pac", settings)
 }
 
 func TestNoProxy(t *testing.T) {
-	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
-
 	assert.PanicsWithError(t,
 		fmt.Sprintf(NoProxyErrorMessage, "some-domain.com"),
-		func() { proxy.ReadConfig("proxies-missing") },
+		func() { NewProxyPac("./test/config/proxies-missing", []string{}) },
 	)
 }
 
 func TestSimpleInclude(t *testing.T) {
-	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
-	proxy.ReadConfig("include-simple")
-
+	proxy := NewProxyPac("./test/config/include-simple", []string{})
 	settings := proxy.GenerateSettings()
 	assertEqualToFile(t, "include-simple.pac", settings)
 }
 
 func TestIncludeFromAnotherDirectory(t *testing.T) {
-	proxy := ProxyPac{ConfigLocations: []string{"./test/config", "./test/data"}}
-	proxy.ReadConfig("include-other-dir")
-
+	proxy := NewProxyPac("./test/config/include-other-dir", []string{"./test/data"})
 	settings := proxy.GenerateSettings()
 	assertEqualToFile(t, "include-simple.pac", settings)
 }
 
 func TestIncludesAreScoped(t *testing.T) {
-	proxy := ProxyPac{ConfigLocations: []string{"./test/config"}}
-	proxy.ReadConfig("include-scopes")
-
+	proxy := NewProxyPac("./test/config/include-scopes", []string{})
 	settings := proxy.GenerateSettings()
 	assertEqualToFile(t, "include-scopes.pac", settings)
+}
+
+func TestIncludesAreLocalized(t *testing.T) {
+	proxy := NewProxyPac("./test/config/include-duplicates", []string{"./test/data"})
+	settings := proxy.GenerateSettings()
+	assertEqualToFile(t, "include-duplicates.pac", settings)
 }
 
 func (proxy ProxyPac) GenerateSettings() string {
@@ -76,5 +68,7 @@ func (proxy ProxyPac) GenerateSettings() string {
 func assertEqualToFile(t *testing.T, filename string, result string) {
 	expected, err := os.ReadFile("./test/expect/" + filename)
 	assert.NoError(t, err)
-	assert.Equal(t, string(expected), result)
+	if err == nil {
+		assert.Equal(t, string(expected), result)
+	}
 }
