@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/alecthomas/participle/v2"
@@ -31,6 +32,7 @@ type (
 	}
 
 	DomainMatch interface {
+		fmt.Stringer
 		ApplyTo(ProxySettings)
 	}
 
@@ -88,18 +90,38 @@ func (match SubDomainMatch) ApplyTo(settings ProxySettings) {
 }
 
 // ApplyTo implements DomainMatch.
-func (RegexpMatch) ApplyTo(settings ProxySettings) {
+func (match RegexpMatch) ApplyTo(settings ProxySettings) {
 	panic("unimplemented")
 }
 
 // ApplyTo implements DomainMatch.
-func (KeywordMatch) ApplyTo(settings ProxySettings) {
-	panic("unimplemented")
+func (match KeywordMatch) ApplyTo(settings ProxySettings) {
+	settings.AddKeywordMatch(match)
 }
 
 // ApplyTo implements DomainMatch.
-func (FullDomainMatch) ApplyTo(settings ProxySettings) {
-	panic("unimplemented")
+func (match FullDomainMatch) ApplyTo(settings ProxySettings) {
+	settings.AddFullDomainMatch(match)
+}
+
+// String implements Stringer.
+func (match SubDomainMatch) String() string {
+	return "domain:" + match.Value
+}
+
+// String implements Stringer.
+func (match FullDomainMatch) String() string {
+	return "full:" + match.Value
+}
+
+// String implements Stringer.
+func (match KeywordMatch) String() string {
+	return "keyword:" + match.Value
+}
+
+// String implements Stringer.
+func (match RegexpMatch) String() string {
+	return "regexp:" + match.Value
 }
 
 var (

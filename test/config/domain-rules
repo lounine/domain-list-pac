@@ -1,0 +1,8 @@
+# Various domain checks
+
+PROXY	192.168.41.1:8080
+
+sub-domains-1.com
+domain: sub-domains-2.com
+full: www.full-domain.com
+keyword: some-keyword

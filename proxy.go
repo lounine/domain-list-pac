@@ -11,6 +11,8 @@ import (
 type ProxySettings interface {
 	UseProxy(ProxyConfigEntry)
 	AddSubdomainMatch(SubDomainMatch)
+	AddKeywordMatch(KeywordMatch)
+	AddFullDomainMatch(FullDomainMatch)
 	ReadConfig(string)
 	WriteSettings(io.Writer)
 }
@@ -37,12 +39,12 @@ func (variable ProxyVariable) String() string {
 }
 
 type ProxyStatement struct {
-	Statement string
-	Proxy     *ProxyVariable
+	Check string
+	Proxy *ProxyVariable
 }
 
 func (statement ProxyStatement) String() string {
-	return fmt.Sprintf("%v return %v;", statement.Statement, statement.Proxy.Name)
+	return fmt.Sprintf("%v return %v;", statement.Check, statement.Proxy.Name)
 }
 
 type FileScope struct {
@@ -95,15 +97,34 @@ func (proxy *ProxyPac) UseProxy(entry ProxyConfigEntry) {
 
 // AddSubdomainMatch implements ProxySettings.
 func (proxy *ProxyPac) AddSubdomainMatch(match SubDomainMatch) {
+	proxy.addMatch(
+		fmt.Sprintf("if (dnsDomainIs(h, '%v'))", match.Value),
+		match,
+	)
+}
+
+// AddFullDomainMatch implements ProxySettings.
+func (proxy *ProxyPac) AddFullDomainMatch(match FullDomainMatch) {
+	proxy.addMatch(
+		fmt.Sprintf("if (h == '%v')", match.Value),
+		match,
+	)
+}
+
+// AddKeywordMatch implements ProxySettings.
+func (proxy *ProxyPac) AddKeywordMatch(match KeywordMatch) {
+	proxy.addMatch(
+		fmt.Sprintf("if (shExpMatch(h, '*%v*'))", match.Value),
+		match,
+	)
+}
+
+func (proxy *ProxyPac) addMatch(check string, match DomainMatch) {
 	if proxy.CurrentScope.CurrentProxy == nil {
-		panic(fmt.Errorf(NoProxyErrorMessage, match.Value))
+		panic(fmt.Errorf(NoProxyErrorMessage, match))
 	}
 
-	statement := ProxyStatement{
-		Statement: fmt.Sprintf("if (dnsDomainIs(h, '%v'))", match.Value),
-		Proxy:     proxy.CurrentScope.CurrentProxy,
-	}
-
+	statement := ProxyStatement{Check: check, Proxy: proxy.CurrentScope.CurrentProxy}
 	proxy.Statements = append(proxy.Statements, statement)
 }
 
