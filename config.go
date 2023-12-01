@@ -90,11 +90,6 @@ func (match SubDomainMatch) ApplyTo(settings ProxySettings) {
 }
 
 // ApplyTo implements DomainMatch.
-func (match RegexpMatch) ApplyTo(settings ProxySettings) {
-	panic("unimplemented")
-}
-
-// ApplyTo implements DomainMatch.
 func (match KeywordMatch) ApplyTo(settings ProxySettings) {
 	settings.AddKeywordMatch(match)
 }
@@ -102,6 +97,11 @@ func (match KeywordMatch) ApplyTo(settings ProxySettings) {
 // ApplyTo implements DomainMatch.
 func (match FullDomainMatch) ApplyTo(settings ProxySettings) {
 	settings.AddFullDomainMatch(match)
+}
+
+// ApplyTo implements DomainMatch.
+func (match RegexpMatch) ApplyTo(settings ProxySettings) {
+	settings.AddRegexpMatch(match)
 }
 
 // String implements Stringer.

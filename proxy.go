@@ -13,6 +13,7 @@ type ProxySettings interface {
 	AddSubdomainMatch(SubDomainMatch)
 	AddKeywordMatch(KeywordMatch)
 	AddFullDomainMatch(FullDomainMatch)
+	AddRegexpMatch(RegexpMatch)
 	ReadConfig(string)
 	WriteSettings(io.Writer)
 }
@@ -98,7 +99,7 @@ func (proxy *ProxyPac) UseProxy(entry ProxyConfigEntry) {
 // AddSubdomainMatch implements ProxySettings.
 func (proxy *ProxyPac) AddSubdomainMatch(match SubDomainMatch) {
 	proxy.addMatch(
-		fmt.Sprintf("if (dnsDomainIs(h, '%v'))", match.Value),
+		fmt.Sprintf(`if (dnsDomainIs(h, '%v'))`, match.Value),
 		match,
 	)
 }
@@ -106,7 +107,7 @@ func (proxy *ProxyPac) AddSubdomainMatch(match SubDomainMatch) {
 // AddFullDomainMatch implements ProxySettings.
 func (proxy *ProxyPac) AddFullDomainMatch(match FullDomainMatch) {
 	proxy.addMatch(
-		fmt.Sprintf("if (h == '%v')", match.Value),
+		fmt.Sprintf(`if (h == '%v')`, match.Value),
 		match,
 	)
 }
@@ -114,7 +115,15 @@ func (proxy *ProxyPac) AddFullDomainMatch(match FullDomainMatch) {
 // AddKeywordMatch implements ProxySettings.
 func (proxy *ProxyPac) AddKeywordMatch(match KeywordMatch) {
 	proxy.addMatch(
-		fmt.Sprintf("if (shExpMatch(h, '*%v*'))", match.Value),
+		fmt.Sprintf(`if (shExpMatch(h, '*%v*'))`, match.Value),
+		match,
+	)
+}
+
+// AddKeywordMatch implements ProxySettings.
+func (proxy *ProxyPac) AddRegexpMatch(match RegexpMatch) {
+	proxy.addMatch(
+		fmt.Sprintf(`if (/%v/.test(h))`, match.Value),
 		match,
 	)
 }
