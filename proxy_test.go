@@ -56,6 +56,13 @@ func TestDomainsRulesHandling(t *testing.T) {
 	assertEqualToFile(t, "domain-rules.pac", settings)
 }
 
+func TestIncludeNotFound(t *testing.T) {
+	assert.PanicsWithError(t,
+		fmt.Sprintf(FileNotFoundErrorMessage, "missing-file"),
+		func() { generateSettings("include-missing", []string{}) },
+	)
+}
+
 func generateSettings(filename string, locations []string) string {
 	proxy := NewProxyPac("./test/config/"+filename, locations)
 

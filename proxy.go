@@ -28,6 +28,7 @@ type ProxyPac struct {
 
 const NoProxyErrorMessage = "no proxy to use for %v"
 const CantAccessFileErrorMessage = "error accessing file %v"
+const FileNotFoundErrorMessage = "can't find included file: %v"
 
 type ProxyVariable struct {
 	Name    string
@@ -177,6 +178,8 @@ func (proxy *ProxyPac) ReadConfig(filename string) {
 			return
 		}
 	}
+
+	panic(fmt.Errorf(FileNotFoundErrorMessage, filename))
 }
 
 func (proxy *ProxyPac) tryReadConfig(directory string, filename string, scope *FileScope) bool {
