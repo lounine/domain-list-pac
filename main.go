@@ -20,6 +20,8 @@ func (array *arrayFlags) String() string {
 }
 
 func (array *arrayFlags) Set(value string) error {
+	value = strings.ReplaceAll(value, "~", "${HOME}")
+	value = os.ExpandEnv(value)
 	*array = append(*array, value)
 	return nil
 }
